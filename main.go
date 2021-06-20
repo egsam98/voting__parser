@@ -22,7 +22,7 @@ import (
 
 var envs struct {
 	Web struct {
-		Addr            string        `envconfig:"WED_ADDR" default:":3000"`
+		Addr            string        `envconfig:"WEB_ADDR" default:":3000"`
 		ShutdownTimeout time.Duration `envconfig:"WEB_SHUTDOWN_TIMEOUT" default:"5s"`
 	}
 	Kafka struct {
@@ -56,7 +56,12 @@ func run() error {
 	cfg.Producer.Return.Errors = true
 	cfg.Producer.Return.Successes = true
 
-	prod, err := sarama.NewSyncProducer([]string{envs.Kafka.Addr}, cfg)
+	saramaClient, err := sarama.NewClient([]string{envs.Kafka.Addr}, cfg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to connect to Kafka %q", envs.Kafka.Addr)
+	}
+
+	prod, err := sarama.NewSyncProducerFromClient(saramaClient)
 	if err != nil {
 		return errors.Wrapf(err, "failed to start producer on %q", envs.Kafka.Addr)
 	}
@@ -67,9 +72,17 @@ func run() error {
 		}
 	}()
 
+	apiHandler, err := rest.API(
+		votes.NewService(prod, envs.Kafka.ValidatorTopic),
+		saramaClient,
+	)
+	if err != nil {
+		return err
+	}
+
 	srv := http.Server{
 		Addr:    envs.Web.Addr,
-		Handler: rest.API(votes.NewService(prod, envs.Kafka.ValidatorTopic)),
+		Handler: apiHandler,
 	}
 
 	apiErr := make(chan error)
