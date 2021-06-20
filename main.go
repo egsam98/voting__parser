@@ -26,8 +26,8 @@ var envs struct {
 		ShutdownTimeout time.Duration `envconfig:"WEB_SHUTDOWN_TIMEOUT" default:"5s"`
 	}
 	Kafka struct {
-		Addr           string `envconfig:"KAFKA_ADDR"`
-		ValidatorTopic string `envconfig:"KAFKA_VALIDATOR_TOPIC"`
+		Addr           string `envconfig:"KAFKA_ADDR" required:"true"`
+		ValidatorTopic string `envconfig:"KAFKA_VALIDATOR_TOPIC" required:"true"`
 	}
 }
 
